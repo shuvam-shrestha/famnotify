@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -47,9 +48,9 @@ export default function DashboardPage() {
     }
   };
 
-  const doorbellAlerts = notifications.filter(n => n.type === 'doorbell');
-  const snapshotAlerts = notifications.filter(n => n.type === 'snapshot');
-  const cookingLists = notifications.filter(n => n.type === 'cooking_list');
+  const doorbellAlerts = notifications.filter(n => n.type === 'doorbell').sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const snapshotAlerts = notifications.filter(n => n.type === 'snapshot').sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const cookingLists = notifications.filter(n => n.type === 'cooking_list').sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   const renderNotificationContent = (notification: NotificationItem) => {
     if (!notification) return null;
@@ -60,7 +61,14 @@ export default function DashboardPage() {
         const snapshot = notification.payload as Snapshot;
         return (
           <div className="space-y-2">
-            <Image src={snapshot.imageUrl} alt={snapshot.caption || "Snapshot"} width={400} height={300} className="rounded-md border" data-ai-hint={snapshot.dataAiHint || "person selfie"}/>
+            <Image 
+              src={snapshot.imageUrl} 
+              alt={snapshot.caption || "Snapshot"} 
+              width={400} 
+              height={300} 
+              className="rounded-md border object-cover w-full aspect-[4/3]" 
+              data-ai-hint={snapshot.dataAiHint || "visitor photo"} // Updated hint
+            />
             {snapshot.caption && <p className="text-sm text-muted-foreground"><em>{snapshot.caption}</em></p>}
           </div>
         );
@@ -77,27 +85,27 @@ export default function DashboardPage() {
   };
   
   const NotificationCard = ({ title, icon: Icon, items }: { title: string; icon: React.ElementType; items: NotificationItem[] }) => (
-    <Card className="shadow-lg">
+    <Card className="shadow-lg flex flex-col">
       <CardHeader>
-        <CardTitle className="flex items-center"><Icon className="mr-2 text-accent" /> {title}</CardTitle>
+        <CardTitle className="flex items-center text-xl"><Icon className="mr-2 h-6 w-6 text-accent" /> {title}</CardTitle>
         <CardDescription>Latest {title.toLowerCase()} from visitors.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-grow">
         {items.length === 0 ? (
-          <p className="text-muted-foreground">No {title.toLowerCase()} yet.</p>
+          <p className="text-muted-foreground flex items-center justify-center h-full">No {title.toLowerCase()} yet.</p>
         ) : (
           <ScrollArea className="h-64">
             <ul className="space-y-3 pr-4">
               {items.map(item => (
-                <li key={item.id} className={`p-3 rounded-md border ${item.read ? 'bg-muted/50' : 'bg-card hover:bg-muted/70 transition-colors'} flex justify-between items-center`}>
+                <li key={item.id} className={`p-3 rounded-md border ${item.read ? 'bg-muted/30' : 'bg-card hover:bg-muted/60 transition-colors'} flex justify-between items-center`}>
                   <div>
-                    <span className="font-medium block">{item.type === 'doorbell' ? 'Doorbell Ring' : item.type === 'snapshot' ? 'New Snapshot' : 'Cooking List'}</span>
+                    <span className="font-medium block text-sm">{item.type === 'doorbell' ? 'Doorbell Ring' : item.type === 'snapshot' ? 'New Snapshot' : 'Cooking List'}</span>
                     <span className="text-xs text-muted-foreground">{new Date(item.timestamp).toLocaleString()}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {!item.read && <Badge variant="default" className="bg-accent text-accent-foreground">New</Badge>}
-                    <Button variant="ghost" size="sm" onClick={() => handleViewNotification(item)}>
-                      <Eye className="mr-1 h-4 w-4" /> View
+                    {!item.read && <Badge variant="default" className="bg-accent text-accent-foreground text-xs">New</Badge>}
+                    <Button variant="ghost" size="sm" onClick={() => handleViewNotification(item)} className="text-xs">
+                      <Eye className="mr-1 h-3.5 w-3.5" /> View
                     </Button>
                   </div>
                 </li>
@@ -125,9 +133,9 @@ export default function DashboardPage() {
           <AlertDialogContent className="max-w-lg w-full">
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center">
-                {selectedNotification.type === 'doorbell' && <Bell className="mr-2 text-accent" />}
-                {selectedNotification.type === 'snapshot' && <Camera className="mr-2 text-accent" />}
-                {selectedNotification.type === 'cooking_list' && <ListChecks className="mr-2 text-accent" />}
+                {selectedNotification.type === 'doorbell' && <Bell className="mr-2 h-5 w-5 text-accent" />}
+                {selectedNotification.type === 'snapshot' && <Camera className="mr-2 h-5 w-5 text-accent" />}
+                {selectedNotification.type === 'cooking_list' && <ListChecks className="mr-2 h-5 w-5 text-accent" />}
                 Notification Details
               </AlertDialogTitle>
               <AlertDialogDescription>
@@ -135,7 +143,7 @@ export default function DashboardPage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <Separator className="my-4" />
-            <div className="max-h-[60vh] overflow-y-auto p-1">
+            <div className="max-h-[60vh] overflow-y-auto p-1 custom-scrollbar">
              {renderNotificationContent(selectedNotification)}
             </div>
             <Separator className="my-4" />
@@ -150,3 +158,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -10,8 +11,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Bell, Camera, Send, ListPlus, Video, VideoOff } from 'lucide-react';
 import { ClientSoundPlayer } from '@/components/site/ClientSoundPlayer';
 import type { Snapshot } from '@/types';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-export default function VisitorPage() {
+export default function LandingPage() {
   const { addDoorbellAlert, addSnapshotAlert, addCookingList } = useFamilyData();
   const { toast } = useToast();
   const [playDoorbellSound, setPlayDoorbellSound] = useState(false);
@@ -24,6 +26,8 @@ export default function VisitorPage() {
   const [snapshotDataUrl, setSnapshotDataUrl] = useState<string | null>(null);
   const [snapshotCaption, setSnapshotCaption] = useState('');
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+
 
   const handleNotifyMembers = () => {
     addDoorbellAlert();
@@ -34,20 +38,27 @@ export default function VisitorPage() {
   const startCamera = useCallback(async () => {
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
         setStream(mediaStream);
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
-          setIsCameraOn(true);
-          setSnapshotDataUrl(null); // Reset previous snapshot
+          // Ensure video plays on iOS
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play().catch(e => console.error("Video play failed:", e));
+          };
         }
+        setIsCameraOn(true);
+        setHasCameraPermission(true);
+        setSnapshotDataUrl(null); // Reset previous snapshot if camera is started
       } catch (err) {
         console.error("Error accessing camera:", err);
-        toast({ title: "Camera Error", description: "Could not access the camera.", variant: "destructive" });
+        toast({ title: "Camera Error", description: "Could not access the camera. Please check permissions.", variant: "destructive" });
         setIsCameraOn(false);
+        setHasCameraPermission(false);
       }
     } else {
       toast({ title: "Camera Not Supported", description: "Your browser doesn't support camera access.", variant: "destructive" });
+      setHasCameraPermission(false);
     }
   }, [toast]);
 
@@ -62,40 +73,65 @@ export default function VisitorPage() {
     setIsCameraOn(false);
   }, [stream]);
 
-  const handleTakePhoto = () => {
-    if (videoRef.current && canvasRef.current && isCameraOn) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const context = canvas.getContext('2d');
-      if (context) {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/png');
-        setSnapshotDataUrl(dataUrl);
-        stopCamera(); // Turn off camera after taking photo
-        toast({ title: "Snapshot Taken!", description: "You can add a caption and send it." });
-      }
+  const toggleCamera = () => {
+    if (isCameraOn) {
+      stopCamera();
     } else {
-       // Fallback if camera didn't work or not on: use a placeholder
-      setSnapshotDataUrl("https://placehold.co/300x200.png");
-      toast({ title: "Using Placeholder", description: "Camera not active, using a placeholder image." });
+      startCamera();
     }
   };
 
+  const captureAndSetSnapshot = useCallback(() => {
+    if (videoRef.current && canvasRef.current && isCameraOn && stream) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      
+      // Set canvas dimensions to video stream's native resolution for better quality
+      const trackSettings = stream.getVideoTracks()[0]?.getSettings();
+      canvas.width = trackSettings?.width || video.videoWidth || 640;
+      canvas.height = trackSettings?.height || video.videoHeight || 480;
+
+      const context = canvas.getContext('2d');
+      if (context) {
+        // Flip horizontally for front-facing camera to make it intuitive
+        if (trackSettings?.facingMode === "user") {
+          context.translate(canvas.width, 0);
+          context.scale(-1, 1);
+        }
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        // Reset transform if it was applied
+        if (trackSettings?.facingMode === "user") {
+          context.setTransform(1, 0, 0, 1, 0, 0); 
+        }
+
+        const dataUrl = canvas.toDataURL('image/png');
+        setSnapshotDataUrl(dataUrl);
+        toast({ title: "Snapshot Taken!", description: "Add a caption and send it." });
+        // Optionally stop camera after taking photo:
+        // stopCamera(); 
+      }
+    } else {
+      const placeholderUrl = "https://placehold.co/600x400.png";
+      setSnapshotDataUrl(placeholderUrl);
+      toast({ title: "Using Placeholder Snapshot", description: "Camera was not active. A placeholder image is ready." });
+    }
+  }, [isCameraOn, stream, toast, stopCamera]); // Added stopCamera to dependencies if used
+
   const handleSendSnapshot = () => {
     if (snapshotDataUrl) {
+      const isPlaceholder = snapshotDataUrl.startsWith("https://placehold.co");
       const snapshot: Snapshot = { 
         imageUrl: snapshotDataUrl, 
         caption: snapshotCaption,
-        dataAiHint: "person portrait" // AI hint for placeholder if needed
+        dataAiHint: isPlaceholder ? "person portrait" : "visitor selfie" // "visitor selfie" for actual photos
       };
       addSnapshotAlert(snapshot);
       toast({ title: "Snapshot Sent!", description: "Your photo has been sent to the family." });
       setSnapshotDataUrl(null);
       setSnapshotCaption('');
+      if (isCameraOn) stopCamera(); // Stop camera after sending if it was on
     } else {
-      toast({ title: "No Snapshot", description: "Please take a photo first.", variant: "destructive" });
+      toast({ title: "No Snapshot", description: "Please take or generate a snapshot first.", variant: "destructive" });
     }
   };
 
@@ -111,94 +147,141 @@ export default function VisitorPage() {
     setCookingItems('');
   };
 
+  // Clean up camera stream when component unmounts
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
+
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-16 py-8">
       <ClientSoundPlayer playSound={playDoorbellSound} onSoundPlayed={() => setPlayDoorbellSound(false)} />
-      
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center"><Bell className="mr-2 text-accent" /> Notify Family</CardTitle>
-          <CardDescription>Let your family know you're here.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={handleNotifyMembers} className="w-full bg-primary hover:bg-accent text-primary-foreground hover:text-accent-foreground">
-            <Bell className="mr-2" /> Notify Members
-          </Button>
-        </CardContent>
-      </Card>
 
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center"><Camera className="mr-2 text-accent" /> Leave a Snapshot</CardTitle>
-          <CardDescription>Take a photo to send to the family.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex justify-center mb-4">
-            {isCameraOn ? (
-              <video ref={videoRef} autoPlay playsInline className="rounded-md border bg-muted w-full max-w-sm h-auto aspect-video object-cover" />
-            ) : snapshotDataUrl ? (
-              <Image src={snapshotDataUrl} alt="Snapshot preview" width={300} height={200} className="rounded-md border" data-ai-hint="person portrait" />
-            ) : (
-              <div className="w-full max-w-sm h-48 bg-muted rounded-md flex items-center justify-center text-muted-foreground border">
-                Camera is off or no snapshot taken.
+      {/* Hero Section */}
+      <section className="text-center space-y-6 px-4">
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-primary">
+          Welcome to Family Hub!
+        </h1>
+        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+          Your central place to connect, share, and stay in touch with your loved ones.
+          Let them know you're here, leave a visual message, or share your dinner wishes.
+        </p>
+        <div className="flex justify-center">
+          <Image 
+            src="https://placehold.co/800x400.png" 
+            alt="Family connection illustration" 
+            width={800} 
+            height={400} 
+            className="rounded-lg shadow-xl border object-cover"
+            data-ai-hint="family connection"
+            priority 
+          />
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="space-y-12">
+        <h2 className="text-3xl font-semibold text-center text-primary px-4">What would you like to do?</h2>
+        <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8 items-start px-4">
+          {/* Card 1: Notify Family (Doorbell) */}
+          <Card className="shadow-xl transform hover:scale-105 transition-transform duration-300 ease-in-out">
+            <CardHeader>
+              <CardTitle className="flex items-center text-2xl"><Bell className="mr-3 h-7 w-7 text-accent" /> Notify Family</CardTitle>
+              <CardDescription>Let your family know you've arrived.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={handleNotifyMembers} className="w-full bg-primary hover:bg-accent text-primary-foreground hover:text-accent-foreground text-lg py-6 rounded-md">
+                <Bell className="mr-2 h-5 w-5" /> Ring Doorbell
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Card 2: Leave a Snapshot (Camera) */}
+          <Card className="shadow-xl transform hover:scale-105 transition-transform duration-300 ease-in-out">
+            <CardHeader>
+              <CardTitle className="flex items-center text-2xl"><Camera className="mr-3 h-7 w-7 text-accent" /> Leave a Snapshot</CardTitle>
+              <CardDescription>Send a quick photo message.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-center items-center rounded-md border bg-muted w-full aspect-[4/3] overflow-hidden">
+                {isCameraOn ? (
+                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover transform scale-x-[-1]" />
+                ) : snapshotDataUrl ? (
+                  <Image src={snapshotDataUrl} alt="Snapshot preview" layout="responsive" width={600} height={450} className="w-full h-full object-cover" data-ai-hint={snapshotDataUrl.startsWith("https://placehold.co") ? "person portrait" : "visitor selfie"} />
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-muted-foreground p-4 h-full">
+                    <Camera size={48} className="mb-2 text-gray-400" />
+                    <span>{hasCameraPermission === false ? "Camera access denied." : "Camera off or no snapshot."}</span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <canvas ref={canvasRef} style={{ display: 'none' }} />
-          
-          <div className="flex gap-2 justify-center">
-            {!isCameraOn ? (
-              <Button onClick={startCamera} variant="outline">
-                <Video className="mr-2" /> Start Camera
-              </Button>
-            ) : (
-              <Button onClick={stopCamera} variant="outline">
-                <VideoOff className="mr-2" /> Stop Camera
-              </Button>
-            )}
-            <Button onClick={handleTakePhoto} disabled={!isCameraOn && !snapshotDataUrl && !process.env.NODE_ENV}> {/* Allow placeholder in dev */}
-              <Camera className="mr-2" /> {snapshotDataUrl ? "Retake Photo" : "Take Photo"}
-            </Button>
-          </div>
+              <canvas ref={canvasRef} style={{ display: 'none' }} />
+              
+              {hasCameraPermission === false && (
+                 <Alert variant="destructive" className="mt-2">
+                    <AlertTitle>Camera Access Denied</AlertTitle>
+                    <AlertDescription>
+                      Please enable camera permissions in your browser settings to use this feature.
+                    </AlertDescription>
+                  </Alert>
+              )}
 
-          {snapshotDataUrl && (
-            <div className="space-y-2">
-              <Textarea 
-                placeholder="Add a caption (optional)" 
-                value={snapshotCaption}
-                onChange={(e) => setSnapshotCaption(e.target.value)}
-                className="bg-input"
-              />
-              <Button onClick={handleSendSnapshot} className="w-full bg-primary hover:bg-accent text-primary-foreground hover:text-accent-foreground">
-                <Send className="mr-2" /> Send Photo
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                <Button onClick={toggleCamera} variant="outline" className="flex-1 rounded-md">
+                  {isCameraOn ? <VideoOff className="mr-2" /> : <Video className="mr-2" />}
+                  {isCameraOn ? "Stop Camera" : "Start Camera"}
+                </Button>
+                <Button onClick={captureAndSetSnapshot} className="flex-1 rounded-md">
+                  <Camera className="mr-2" /> Take Snapshot
+                </Button>
+              </div>
 
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center"><ListPlus className="mr-2 text-accent" /> Cooking Requests</CardTitle>
-          <CardDescription>Let the family know what you'd like for dinner.</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmitCookingList}>
-          <CardContent>
-            <Textarea 
-              placeholder="Enter items to cook, one per line... (e.g., Pasta, Salad, Garlic Bread)" 
-              rows={4} 
-              value={cookingItems}
-              onChange={(e) => setCookingItems(e.target.value)}
-              className="bg-input"
-            />
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" className="w-full bg-primary hover:bg-accent text-primary-foreground hover:text-accent-foreground">
-              <ListPlus className="mr-2" /> Submit List
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
+              {snapshotDataUrl && (
+                <div className="space-y-3 pt-2">
+                  <Textarea 
+                    placeholder="Add a caption (optional)" 
+                    value={snapshotCaption}
+                    onChange={(e) => setSnapshotCaption(e.target.value)}
+                    className="bg-input rounded-md"
+                  />
+                  <Button onClick={handleSendSnapshot} className="w-full bg-primary hover:bg-accent text-primary-foreground hover:text-accent-foreground rounded-md">
+                    <Send className="mr-2" /> Send Photo
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Card 3: Cooking Requests (List) */}
+          <Card className="shadow-xl transform hover:scale-105 transition-transform duration-300 ease-in-out">
+            <CardHeader>
+              <CardTitle className="flex items-center text-2xl"><ListPlus className="mr-3 h-7 w-7 text-accent" /> Cooking Requests</CardTitle>
+              <CardDescription>What are you in the mood for?</CardDescription>
+            </CardHeader>
+            <form onSubmit={handleSubmitCookingList}>
+              <CardContent>
+                <Textarea 
+                  placeholder="E.g., Spaghetti Bolognese&#10;Caesar Salad&#10;Garlic Bread" 
+                  rows={5} 
+                  value={cookingItems}
+                  onChange={(e) => setCookingItems(e.target.value)}
+                  className="bg-input rounded-md"
+                />
+              </CardContent>
+              <CardFooter>
+                <Button type="submit" className="w-full bg-primary hover:bg-accent text-primary-foreground hover:text-accent-foreground text-lg py-6 rounded-md">
+                  <ListPlus className="mr-2 h-5 w-5" /> Submit Wishlist
+                </Button>
+              </CardFooter>
+            </form>
+          </Card>
+        </div>
+      </section>
     </div>
   );
 }
+
