@@ -35,7 +35,7 @@ For production, ensure this environment variable is set securely in your hosting
 ### Sound Alert
 The application uses a sound alert for notifications. You need to place a sound file (e.g., `alert.mp3`) in the `public/sounds/` directory. If you use a different file name or path, update the `defaultSoundSrc` variable in `src/components/site/ClientSoundPlayer.tsx`.
 
-Example:
+Example:  
 1. Create the directory: `mkdir -p public/sounds`
 2. Place your sound file: `public/sounds/alert.mp3`
 

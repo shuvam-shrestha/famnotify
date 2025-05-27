@@ -9,7 +9,7 @@ import { useFamilyData } from '@/context/FamilyDataContext';
 import type { NotificationItem, Snapshot } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Bell, Camera, ListChecks, Eye, CheckCircle2 } from 'lucide-react';
+import { Bell, Camera, ListChecks, Eye, CheckCircle2, Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,20 +25,20 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
 export default function DashboardPage() {
-  const { isAuthenticated, isLoading, logout } = useAuth();
-  const { notifications, markAsRead } = useFamilyData();
+  const { isAuthenticated, isLoading: authIsLoading, logout } = useAuth();
+  const { notifications, markAsRead, isLoadingNotifications } = useFamilyData();
   const router = useRouter();
 
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!authIsLoading && !isAuthenticated) {
       router.push('/login');
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, authIsLoading, router]);
 
-  if (isLoading || !isAuthenticated) {
-    return <div className="flex justify-center items-center min-h-[calc(100vh-200px)]"><p>Loading dashboard...</p></div>;
+  if (authIsLoading || !isAuthenticated) {
+    return <div className="flex justify-center items-center min-h-[calc(100vh-200px)]"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <p className="ml-2">Loading dashboard...</p></div>;
   }
 
   const handleViewNotification = (notification: NotificationItem) => {
@@ -59,7 +59,7 @@ export default function DashboardPage() {
         const message = notification.payload as string;
         return (
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">A visitor rang the doorbell.</p>
+            <p className="text-sm text-muted-foreground">A visitor rang the doorbell with the following message:</p>
             <div className="p-3 bg-muted/50 rounded-md">
               <p className="font-medium text-foreground">{message || "No specific message provided."}</p>
             </div>
@@ -83,26 +83,34 @@ export default function DashboardPage() {
       case 'cooking_list':
         const items = notification.payload as string[];
         return (
-          <ul className="list-disc pl-5 space-y-1">
-            {items.map((item, index) => <li key={index}>{item}</li>)}
-          </ul>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">A visitor submitted a cooking wishlist:</p>
+            <ul className="list-disc pl-5 space-y-1 bg-muted/50 p-3 rounded-md">
+              {items.map((item, index) => <li key={index} className="text-foreground">{item}</li>)}
+            </ul>
+          </div>
         );
       default:
         return <p>Unknown notification type.</p>;
     }
   };
   
-  const NotificationCard = ({ title, icon: Icon, items }: { title: string; icon: React.ElementType; items: NotificationItem[] }) => (
+  const NotificationCard = ({ title, icon: Icon, items, isLoading }: { title: string; icon: React.ElementType; items: NotificationItem[], isLoading?: boolean }) => (
     <Card className="shadow-lg flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center text-xl"><Icon className="mr-2 h-6 w-6 text-accent" /> {title}</CardTitle>
         <CardDescription>Latest {title.toLowerCase()} from visitors.</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow">
-        {items.length === 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center items-center h-full">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <p className="ml-2 text-muted-foreground">Loading {title.toLowerCase()}...</p>
+          </div>
+        ) :items.length === 0 ? (
           <p className="text-muted-foreground flex items-center justify-center h-full">No {title.toLowerCase()} yet.</p>
         ) : (
-          <ScrollArea className="h-auto max-h-60 sm:max-h-64 md:max-h-72 lg:max-h-80">
+          <ScrollArea className="h-auto max-h-[15rem] sm:max-h-[16rem] md:max-h-[18rem] lg:max-h-[20rem]">
             <ul className="space-y-3 pr-4">
               {items.map(item => (
                 <li key={item.id} className={`p-3 rounded-md border ${item.read ? 'bg-muted/30' : 'bg-card hover:bg-muted/60 transition-colors'} flex justify-between items-center`}>
@@ -128,12 +136,15 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold text-primary">Family Dashboard</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-primary">Family Dashboard</h1>
+        {/* Optional: Add a manual refresh button if needed, though Firebase is real-time */}
+      </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <NotificationCard title="Doorbell Alerts" icon={Bell} items={doorbellAlerts} />
-        <NotificationCard title="Snapshots" icon={Camera} items={snapshotAlerts} />
-        <NotificationCard title="Cooking Wishlists" icon={ListChecks} items={cookingLists} />
+      <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <NotificationCard title="Doorbell Alerts" icon={Bell} items={doorbellAlerts} isLoading={isLoadingNotifications && doorbellAlerts.length === 0} />
+        <NotificationCard title="Snapshots" icon={Camera} items={snapshotAlerts} isLoading={false} /> {/* Snapshots are local */}
+        <NotificationCard title="Cooking Wishlists" icon={ListChecks} items={cookingLists} isLoading={isLoadingNotifications && cookingLists.length === 0} />
       </div>
 
       {selectedNotification && (
