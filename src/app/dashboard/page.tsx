@@ -56,7 +56,15 @@ export default function DashboardPage() {
     if (!notification) return null;
     switch (notification.type) {
       case 'doorbell':
-        return <p>{notification.payload as string}</p>;
+        const message = notification.payload as string;
+        return (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">A visitor rang the doorbell.</p>
+            <div className="p-3 bg-muted/50 rounded-md">
+              <p className="font-medium text-foreground">{message || "No specific message provided."}</p>
+            </div>
+          </div>
+        );
       case 'snapshot':
         const snapshot = notification.payload as Snapshot;
         return (
@@ -94,7 +102,7 @@ export default function DashboardPage() {
         {items.length === 0 ? (
           <p className="text-muted-foreground flex items-center justify-center h-full">No {title.toLowerCase()} yet.</p>
         ) : (
-          <ScrollArea className="h-auto max-h-60 sm:max-h-64 md:max-h-72">
+          <ScrollArea className="h-auto max-h-60 sm:max-h-64 md:max-h-72 lg:max-h-80">
             <ul className="space-y-3 pr-4">
               {items.map(item => (
                 <li key={item.id} className={`p-3 rounded-md border ${item.read ? 'bg-muted/30' : 'bg-card hover:bg-muted/60 transition-colors'} flex justify-between items-center`}>
@@ -158,4 +166,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

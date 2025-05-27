@@ -1,3 +1,4 @@
+
 "use client";
 
 import type React from 'react';
@@ -19,10 +20,15 @@ export const FamilyDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   const addNotification = useCallback((type: NotificationItem['type'], payload: NotificationItem['payload']) => {
-    setNotifications(prev => [
-      { id: Date.now().toString(), type, payload, timestamp: new Date(), read: false },
-      ...prev,
-    ]);
+    const newNotification: NotificationItem = {
+      id: Date.now().toString(),
+      type,
+      payload,
+      timestamp: new Date(),
+      read: false,
+    };
+    console.log("Adding notification:", newNotification); // Added for debugging
+    setNotifications(prev => [newNotification, ...prev]);
   }, []);
 
   const addDoorbellAlert = useCallback(() => {
@@ -60,3 +66,4 @@ export const useFamilyData = (): FamilyDataContextType => {
   }
   return context;
 };
+
