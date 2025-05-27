@@ -67,7 +67,7 @@ export default function DashboardPage() {
               width={400} 
               height={300} 
               className="rounded-md border object-cover w-full aspect-[4/3]" 
-              data-ai-hint={snapshot.dataAiHint || "visitor photo"} // Updated hint
+              data-ai-hint={snapshot.dataAiHint || "visitor photo"}
             />
             {snapshot.caption && <p className="text-sm text-muted-foreground"><em>{snapshot.caption}</em></p>}
           </div>
@@ -94,7 +94,7 @@ export default function DashboardPage() {
         {items.length === 0 ? (
           <p className="text-muted-foreground flex items-center justify-center h-full">No {title.toLowerCase()} yet.</p>
         ) : (
-          <ScrollArea className="h-64">
+          <ScrollArea className="h-auto max-h-60 sm:max-h-64 md:max-h-72">
             <ul className="space-y-3 pr-4">
               {items.map(item => (
                 <li key={item.id} className={`p-3 rounded-md border ${item.read ? 'bg-muted/30' : 'bg-card hover:bg-muted/60 transition-colors'} flex justify-between items-center`}>
@@ -122,7 +122,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <h1 className="text-3xl font-bold text-primary">Family Dashboard</h1>
       
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <NotificationCard title="Doorbell Alerts" icon={Bell} items={doorbellAlerts} />
         <NotificationCard title="Snapshots" icon={Camera} items={snapshotAlerts} />
         <NotificationCard title="Cooking Wishlists" icon={ListChecks} items={cookingLists} />
@@ -143,7 +143,7 @@ export default function DashboardPage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <Separator className="my-4" />
-            <div className="max-h-[60vh] overflow-y-auto p-1 custom-scrollbar">
+            <div className="max-h-[60vh] overflow-y-auto p-1">
              {renderNotificationContent(selectedNotification)}
             </div>
             <Separator className="my-4" />

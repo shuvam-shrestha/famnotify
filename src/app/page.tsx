@@ -115,7 +115,7 @@ export default function LandingPage() {
       setSnapshotDataUrl(placeholderUrl);
       toast({ title: "Using Placeholder Snapshot", description: "Camera was not active. A placeholder image is ready." });
     }
-  }, [isCameraOn, stream, toast, stopCamera]); // Added stopCamera to dependencies if used
+  }, [isCameraOn, stream, toast]); // Removed stopCamera from dependencies as it's not called directly
 
   const handleSendSnapshot = () => {
     if (snapshotDataUrl) {
@@ -176,7 +176,7 @@ export default function LandingPage() {
             alt="Family connection illustration" 
             width={800} 
             height={400} 
-            className="rounded-lg shadow-xl border object-cover"
+            className="rounded-lg shadow-xl border object-cover w-full max-w-3xl h-auto"
             data-ai-hint="family connection"
             priority 
           />
@@ -186,7 +186,7 @@ export default function LandingPage() {
       {/* Features Section */}
       <section className="space-y-12">
         <h2 className="text-3xl font-semibold text-center text-primary px-4">What would you like to do?</h2>
-        <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8 items-start px-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start px-4">
           {/* Card 1: Notify Family (Doorbell) */}
           <Card className="shadow-xl transform hover:scale-105 transition-transform duration-300 ease-in-out">
             <CardHeader>
@@ -213,7 +213,7 @@ export default function LandingPage() {
                 ) : snapshotDataUrl ? (
                   <Image src={snapshotDataUrl} alt="Snapshot preview" layout="responsive" width={600} height={450} className="w-full h-full object-cover" data-ai-hint={snapshotDataUrl.startsWith("https://placehold.co") ? "person portrait" : "visitor selfie"} />
                 ) : (
-                  <div className="flex flex-col items-center justify-center text-muted-foreground p-4 h-full">
+                  <div className="flex flex-col items-center justify-center text-muted-foreground p-4 h-full text-center">
                     <Camera size={48} className="mb-2 text-gray-400" />
                     <span>{hasCameraPermission === false ? "Camera access denied." : "Camera off or no snapshot."}</span>
                   </div>
