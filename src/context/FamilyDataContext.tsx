@@ -4,8 +4,8 @@
 import type React from 'react';
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { NotificationItem, Snapshot } from '@/types';
-import { db } from '@/lib/firebase'; // Import Firebase database instance
-import { ref, push, set, onValue, update, serverTimestamp, query, orderByChild, limitToLast } from 'firebase/database';
+import { db } from '@/lib/firebase';
+import { ref, push, set, onValue, update, query, orderByChild, limitToLast } from 'firebase/database';
 
 interface FamilyDataContextType {
   notifications: NotificationItem[];
