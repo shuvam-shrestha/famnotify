@@ -12,6 +12,7 @@ import { Bell, Camera, Send, ListPlus, Video, VideoOff } from 'lucide-react';
 import type { Snapshot } from '@/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
+import { ClientSoundPlayer } from '@/components/site/ClientSoundPlayer';
 
 export default function LandingPage() {
   const { addDoorbellAlert, addSnapshotAlert, addCookingList } = useFamilyData();
@@ -26,11 +27,12 @@ export default function LandingPage() {
   const [snapshotCaption, setSnapshotCaption] = useState('');
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [playDoorbellSound, setPlayDoorbellSound] = useState(false);
 
 
   const handleNotifyMembers = () => {
     addDoorbellAlert();
-    // Sound player removed, no sound to play
+    setPlayDoorbellSound(true);
     toast({ title: "Family Notified!", description: "Your presence has been announced." });
   };
 
@@ -122,7 +124,7 @@ export default function LandingPage() {
       toast({ title: "Snapshot Sent!", description: "Your photo has been sent to the family." });
       setSnapshotDataUrl(null);
       setSnapshotCaption('');
-      if (isCameraOn) stopCamera(); 
+      if (isCameraOn && !isPlaceholder) stopCamera(); 
     } else {
       toast({ title: "No Snapshot", description: "Please take or generate a snapshot first.", variant: "destructive" });
     }
@@ -141,6 +143,7 @@ export default function LandingPage() {
   };
 
   useEffect(() => {
+    // Cleanup camera stream on unmount
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -172,6 +175,11 @@ export default function LandingPage() {
           />
         </div>
       </section>
+
+      <ClientSoundPlayer
+        playSound={playDoorbellSound}
+        onSoundPlayed={() => setPlayDoorbellSound(false)}
+      />
 
       {/* Features Section */}
       <section className="space-y-12">
@@ -215,9 +223,9 @@ export default function LandingPage() {
                   <Image
                     src={snapshotDataUrl}
                     alt="Snapshot preview"
-                    layout="fill" 
-                    objectFit="cover"
-                    className="absolute inset-0 w-full h-full" // Overlay
+                    fill // Changed from layout="fill" objectFit="cover"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Example sizes, adjust as needed
+                    className="absolute inset-0 w-full h-full object-cover" // Ensure object-cover for fill
                     data-ai-hint={snapshotDataUrl.startsWith("https://placehold.co") ? "person portrait" : "visitor selfie"}
                   />
                 )}
