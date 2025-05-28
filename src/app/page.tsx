@@ -9,14 +9,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { useFamilyData } from '@/context/FamilyDataContext';
 import { useToast } from '@/hooks/use-toast';
 import { Bell, Camera, Send, ListPlus, Video, VideoOff } from 'lucide-react';
-import { ClientSoundPlayer } from '@/components/site/ClientSoundPlayer';
 import type { Snapshot } from '@/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
 
 export default function LandingPage() {
   const { addDoorbellAlert, addSnapshotAlert, addCookingList } = useFamilyData();
   const { toast } = useToast();
-  const [playDoorbellSound, setPlayDoorbellSound] = useState(false);
   
   const [cookingItems, setCookingItems] = useState('');
   
@@ -31,7 +30,7 @@ export default function LandingPage() {
 
   const handleNotifyMembers = () => {
     addDoorbellAlert();
-    setPlayDoorbellSound(true);
+    // Sound player removed, no sound to play
     toast({ title: "Family Notified!", description: "Your presence has been announced." });
   };
 
@@ -42,7 +41,6 @@ export default function LandingPage() {
         setStream(mediaStream);
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
-          // Ensure video plays on iOS
           videoRef.current.onloadedmetadata = () => {
             videoRef.current?.play().catch(e => console.error("Video play failed:", e));
           };
@@ -86,20 +84,17 @@ export default function LandingPage() {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
-      // Set canvas dimensions to video stream's native resolution for better quality
       const trackSettings = stream.getVideoTracks()[0]?.getSettings();
       canvas.width = trackSettings?.width || video.videoWidth || 640;
       canvas.height = trackSettings?.height || video.videoHeight || 480;
 
       const context = canvas.getContext('2d');
       if (context) {
-        // Flip horizontally for front-facing camera to make it intuitive
         if (trackSettings?.facingMode === "user") {
           context.translate(canvas.width, 0);
           context.scale(-1, 1);
         }
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        // Reset transform if it was applied
         if (trackSettings?.facingMode === "user") {
           context.setTransform(1, 0, 0, 1, 0, 0); 
         }
@@ -107,15 +102,13 @@ export default function LandingPage() {
         const dataUrl = canvas.toDataURL('image/png');
         setSnapshotDataUrl(dataUrl);
         toast({ title: "Snapshot Taken!", description: "Add a caption and send it." });
-        // Optionally stop camera after taking photo:
-        // stopCamera(); 
       }
     } else {
       const placeholderUrl = "https://placehold.co/600x400.png";
       setSnapshotDataUrl(placeholderUrl);
-      toast({ title: "Using Placeholder Snapshot", description: "Camera was not active. A placeholder image is ready." });
+      toast({ title: "Using Placeholder Snapshot", description: "Camera was not active or available. A placeholder image is ready." });
     }
-  }, [isCameraOn, stream, toast]); // Removed stopCamera from dependencies as it's not called directly
+  }, [isCameraOn, stream, toast]);
 
   const handleSendSnapshot = () => {
     if (snapshotDataUrl) {
@@ -123,13 +116,13 @@ export default function LandingPage() {
       const snapshot: Snapshot = { 
         imageUrl: snapshotDataUrl, 
         caption: snapshotCaption,
-        dataAiHint: isPlaceholder ? "person portrait" : "visitor selfie" // "visitor selfie" for actual photos
+        dataAiHint: isPlaceholder ? "person portrait" : "visitor selfie"
       };
       addSnapshotAlert(snapshot);
       toast({ title: "Snapshot Sent!", description: "Your photo has been sent to the family." });
       setSnapshotDataUrl(null);
       setSnapshotCaption('');
-      if (isCameraOn) stopCamera(); // Stop camera after sending if it was on
+      if (isCameraOn) stopCamera(); 
     } else {
       toast({ title: "No Snapshot", description: "Please take or generate a snapshot first.", variant: "destructive" });
     }
@@ -147,7 +140,6 @@ export default function LandingPage() {
     setCookingItems('');
   };
 
-  // Clean up camera stream when component unmounts
   useEffect(() => {
     return () => {
       if (stream) {
@@ -159,8 +151,6 @@ export default function LandingPage() {
 
   return (
     <div className="space-y-16 py-8">
-      <ClientSoundPlayer playSound={playDoorbellSound} onSoundPlayed={() => setPlayDoorbellSound(false)} />
-
       {/* Hero Section */}
       <section className="text-center space-y-6 px-4">
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-primary">
@@ -207,15 +197,40 @@ export default function LandingPage() {
               <CardDescription>Send a quick photo message.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex justify-center items-center rounded-md border bg-muted w-full aspect-[4/3] overflow-hidden">
-                {isCameraOn ? (
-                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover transform scale-x-[-1]" />
-                ) : snapshotDataUrl ? (
-                  <Image src={snapshotDataUrl} alt="Snapshot preview" layout="responsive" width={600} height={450} className="w-full h-full object-cover" data-ai-hint={snapshotDataUrl.startsWith("https://placehold.co") ? "person portrait" : "visitor selfie"} />
-                ) : (
-                  <div className="flex flex-col items-center justify-center text-muted-foreground p-4 h-full text-center">
+              <div className="relative flex justify-center items-center rounded-md border bg-muted w-full aspect-[4/3] overflow-hidden">
+                {/* Video Stream - always in DOM, conditionally visible */}
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={cn(
+                    "w-full h-full object-cover transform scale-x-[-1]", // Base styles for video element
+                    { 'opacity-100': isCameraOn, 'opacity-0 pointer-events-none': !isCameraOn } // Visibility logic
+                  )}
+                />
+
+                {/* Snapshot Image (shown if camera is off AND snapshot exists) */}
+                {!isCameraOn && snapshotDataUrl && (
+                  <Image
+                    src={snapshotDataUrl}
+                    alt="Snapshot preview"
+                    layout="fill" 
+                    objectFit="cover"
+                    className="absolute inset-0 w-full h-full" // Overlay
+                    data-ai-hint={snapshotDataUrl.startsWith("https://placehold.co") ? "person portrait" : "visitor selfie"}
+                  />
+                )}
+
+                {/* Placeholder (shown if camera is off AND no snapshot exists) */}
+                {!isCameraOn && !snapshotDataUrl && (
+                  <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-muted-foreground p-4 text-center bg-muted">
                     <Camera size={48} className="mb-2 text-gray-400" />
-                    <span>{hasCameraPermission === false ? "Camera access denied." : "Camera off or no snapshot."}</span>
+                    <span>
+                      {hasCameraPermission === false
+                        ? "Camera access denied. Check browser settings."
+                        : "Camera is off. Start camera to take a snapshot."}
+                    </span>
                   </div>
                 )}
               </div>
@@ -284,4 +299,3 @@ export default function LandingPage() {
     </div>
   );
 }
-
