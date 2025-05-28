@@ -10,7 +10,7 @@ interface ClientSoundPlayerProps {
   soundSrc?: string;
 }
 
-const defaultSoundSrc = "/sounds/alert.mp3";
+const defaultSoundSrc = "/sounds/Sound Effect - Doorbell.mp3";
 
 export function ClientSoundPlayer({
   playSound,
