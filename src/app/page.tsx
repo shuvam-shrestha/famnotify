@@ -153,29 +153,7 @@ export default function LandingPage() {
 
 
   return (
-    <div className="space-y-16 py-8">
-      {/* Hero Section */}
-      <section className="text-center space-y-6 px-4">
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-primary">
-          Welcome to Family Hub!
-        </h1>
-        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-          Your central place to connect, share, and stay in touch with your loved ones.
-          Let them know you're here, leave a visual message, or share your dinner wishes.
-        </p>
-        <div className="flex justify-center">
-          <Image 
-            src="https://placehold.co/800x400.png" 
-            alt="Family connection illustration" 
-            width={800} 
-            height={400} 
-            className="rounded-lg shadow-xl border object-cover w-full max-w-3xl h-auto"
-            data-ai-hint="family connection"
-            priority 
-          />
-        </div>
-      </section>
-
+    <div className="space-y-12 py-8"> {/* Adjusted top padding from py-16 to py-8 */}
       <ClientSoundPlayer
         playSound={playDoorbellSound}
         onSoundPlayed={() => setPlayDoorbellSound(false)}
@@ -183,7 +161,9 @@ export default function LandingPage() {
 
       {/* Features Section */}
       <section className="space-y-12">
-        <h2 className="text-3xl font-semibold text-center text-primary px-4">What would you like to do?</h2>
+        <h2 className="text-3xl font-semibold text-center text-primary px-4">
+          Welcome to Family Hub! <br className="sm:hidden"/> What would you like to do?
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start px-4">
           {/* Card 1: Notify Family (Doorbell) */}
           <Card className="shadow-xl transform hover:scale-105 transition-transform duration-300 ease-in-out">
@@ -223,9 +203,9 @@ export default function LandingPage() {
                   <Image
                     src={snapshotDataUrl}
                     alt="Snapshot preview"
-                    fill // Changed from layout="fill" objectFit="cover"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Example sizes, adjust as needed
-                    className="absolute inset-0 w-full h-full object-cover" // Ensure object-cover for fill
+                    fill 
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className="absolute inset-0 w-full h-full object-cover"
                     data-ai-hint={snapshotDataUrl.startsWith("https://placehold.co") ? "person portrait" : "visitor selfie"}
                   />
                 )}
