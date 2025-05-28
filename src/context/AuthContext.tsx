@@ -4,7 +4,7 @@ import type React from 'react';
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
-const FAMILY_CODE = process.env.NEXT_PUBLIC_FAMILY_CODE || "1234"; // Default code, should be in .env.local
+const FAMILY_CODE = process.env.NEXT_PUBLIC_FAMILY_CODE || "60966"; // Default code, should be in .env.local
 const AUTH_STORAGE_KEY = 'familyHubAuth';
 
 interface AuthContextType {
